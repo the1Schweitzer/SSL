@@ -1,0 +1,139 @@
+<html>
+<head>
+<link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
+<script src="drop.js"></script>
+</head>
+<body><form id="f1" action="javascript:void(0);" onsubmit="genpfx(this)"> 
+  <table> 
+    <tbody>
+      <tr> 
+        <td>Certificate</td>
+        <td>Key</td> 
+      </tr> 
+      <tr> 
+        <td><input onchange="filereader(this.files,CRT)" type="file" /></td>
+        <td><input onchange="filereader(this.files,KEY)" type="file" /></td> 
+      </tr> 
+      <tr> 
+        <td><textarea id="crt" name="crt" rows="27" cols="65" type="textarea"></textarea></td>
+        <td><textarea id="key" name="key" rows="27" cols="65" type="textarea"></textarea></td> 
+      </tr> 
+      <tr> 
+        <td> 
+        <p id="warning"></p>
+          <div id="password" style="visibility: hidden;">Password<br\> <input name="password" \="" type="text" /><br \="" /> 
+          	<input type="submit" value="Submit" /> </br\>
+          </div> 
+</td> 
+      </tr> 
+    </tbody>
+  </table> </form> 
+<ol id="pfxlist"> <form id="downloader" action="otf.php" method="post"> <input name="filename" type="hidden" /> <input name="filecontent" type="hidden" /> <input name="filetype" type="hidden" /> </form> 
+<script>
+placeholdtxt=`1. Copy and Paste Here; 
+2. Drag and Drop Here; 
+3. Use the file form control above`;
+document.querySelector("#crt").placeholder="Place the CSR in 3 ways:  "+placeholdtxt;
+document.querySelector("#key").placeholder="Place the Key in 3 ways:  "+placeholdtxt;
+
+pfxfiles={};
+function genpfx(f){
+	var oReq = new XMLHttpRequest();
+	oReq.open("POST", "genpfx.php");
+	oReq.responseType="json";
+	oReq.send(new FormData(f));
+	oReq.onload = function(e) {
+		if(oReq.response){
+				pfxfiles[oReq.response.filename]=oReq.response;
+				pfxlink=document.createElement("li");
+				pfxlink.innerHTML=oReq.response.filename;
+				pfxlink.addEventListener("click",function(){download2(oReq.response.filename);});
+				document.getElementById("pfxlist").appendChild(pfxlink);
+		}else{
+			alert("No Match.");
+		}
+	}
+	return false;
+}
+function download(filename){
+	f=document.getElementById("downloader");
+	f.filename.value=filename;
+	f.filecontent.value=pfxfiles[filename].filecontent;
+	f.filetype.value=pfxfiles[filename].filetype;
+	f.submit();
+}
+
+function download2(filename){
+	var e = document.createEvent('MouseEvents'),
+        a = document.createElement('a');
+        a.download = filename;
+	blob=b64toBlob(pfxfiles[filename].filecontent,pfxfiles[filename].filetype);
+        a.href = window.URL.createObjectURL(blob);
+        e.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+	a.dispatchEvent(e);
+	console.log(a);
+}
+
+function b64toBlob(b64Data, contentType, sliceSize) {
+  contentType = contentType || '';
+  sliceSize = sliceSize || 512;
+
+  var byteCharacters = atob(b64Data);
+  var byteArrays = [];
+
+  for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+    var byteNumbers = new Array(slice.length);
+    for (var i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+
+    var byteArray = new Uint8Array(byteNumbers);
+
+    byteArrays.push(byteArray);
+  }
+
+  var blob = new Blob(byteArrays, {type: contentType});
+  return blob;
+}
+
+acceptDrop(CRT=document.getElementById("crt"));
+acceptDrop(KEY=document.getElementById("key"));
+
+CRT.onchange=checkcertkey;
+CRT.addEventListener("change",getCertInfo);
+KEY.onchange=checkcertkey;
+function checkcertkey(){
+	p=document.getElementById("password");
+	warning=document.getElementById("warning");
+	p.style.visibility="hidden";
+	var oReq = new XMLHttpRequest();
+	oReq.open("POST", "pfxcheck.php");
+	//oReq.responseType="json";
+	f=new FormData();
+	f.append("crt",CRT.value);
+	f.append("key",KEY.value);
+	oReq.send(f);
+	oReq.onload = function (e) {
+	    if (oReq.responseText == "Success") {
+			p.style.visibility="visible";
+			warning.innerHTML="";
+		}else{
+			warning.innerHTML=("Certificate and Key don't match!")
+		}
+	};
+}
+function getCertInfo(){
+	var req=new XMLHttpRequest();
+	req.open("POST","certinfo.php");
+	req.onload=function(){
+		console.log(req.response);
+	}
+	var f=new FormData();
+	f.append("crt",CRT.value);
+	req.send(f);
+}
+</script> 
+</ol></body>
+</html>
